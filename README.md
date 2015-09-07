@@ -118,6 +118,15 @@ view和filelist的富div id选择器
 
 `uploader.uploadManage('getUploads');`
 
+### retry
+显示对应图片重试按钮
+参数 
+
+* data
+返回值 无
+
+`uploader.uploadManage('retry',data)`
+
 # 完整Demo
 
 ```
