@@ -112,6 +112,11 @@ view和filelist的富div id选择器
 
 `uploader.uploadManage('size');`
 
+### getUploads
+获得上传图片路径
+返回值 Array
+
+`uploader.uploadManage('getUploads');`
 
 # 完整Demo
 
