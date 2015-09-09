@@ -2,12 +2,19 @@
 (function($) {
     'use strict';
     // 插件实例
-    var plugin = null;
+    var plugins = {};
+    // 标识
+    var gIndex = 0;
+    // 前缀
+    var gPreffix = 'uploader_';
 
     // 定义类
     function UploadManage() {
+        this.$element = null;
         this.view = null;
         this.fileList = null;
+        this.imageType = /(\.|\/)(gif|jpe?g|png)$/i;
+        this.excelType = /(\.|\/)(vnd.openxmlformats-officedocument.spreadsheetml.sheet|vnd.ms-excel|msexcel|x-msexcel|x-ms-excel|x-excel|x-dos_ms_excel|xls|x-xls)$/i;
         this.options = {
             view: '#rocoDndArea', //拖拽区域
             fileList: '#rocoFileList', //文件列表
@@ -19,19 +26,25 @@
             acceptFileTypes: /(\.|\/)(gif|jpe?g|png)$/i, //允许上传文件类型
         };
         // 模板
-        this.template = function(file) {
+        this.template = function(file, exist) {
             var fragment = '';
-            fragment += '<div id="' + file.id + '" class="thumbnail">';
-            fragment += '<p class="title">' + file.name + '</p>';
-            fragment += '<p class="imgWrap">';
-            fragment += '<img src="" style="display:none;">';
+            fragment += '<div id="' + file.id + '" class="thumbnail ' + (exist ? '' : 'thumbnail-bg') + '">';
+            fragment += '<p class="title" title="' + file.name + '">' + file.name + '</p>';
+            fragment += '<p class="imgWrap ' + file.bgClass + '">';
+            if (file.fullPath) {
+                fragment += '<img src="' + file.fullPath + '">';
+            } else {
+                fragment += '<img src="" style="display:none;">';
+            }
+            fragment += '<input type="hidden" value="' + (file.path || '') + '"/>';
             fragment += '</p>';
             fragment += '<p class="progress"><span></span></p>';
-            fragment += '<div class="file-panel">';
-            fragment += '<i data-handle="remove_arrow_click" class="fa fa-times" title="删除" alt="删除"></i>';
+            fragment += '<div class="file-panel"' + ( exist ? 'style="display:block;"' : '')+'>';
+            fragment += '<i data-handle="remove_arrow_click" class="fa fa-times" data-toggle="tooltip" data-placement="top" title="删除" alt="删除"></i>';
             fragment += '<i data-handle="down_arrow_click" class="fa fa-arrow-down" title="下移" alt="下移"></i>';
             fragment += '<i data-handle="up_arrow_click" class="fa fa-arrow-up" title="上移" alt="上移"></i>';
-            fragment += this.options.autoUpload ? '' : '<i data-handle="upload_click" class="fa fa-play" title="上传" alt="上传"></i>';
+            fragment += '<i data-handle="upload_click" class="fa fa-play" title="上传" alt="上传"' + (this.options.autoUpload ? 'style="display:none;"' : '') + '></i>';
+            fragment += '<i data-handle="repeat_click" class="fa fa-repeat" title="重试" alt="重试" style="display:none;"></i>';
             fragment += '</div>';
             fragment += '</div>';
             return fragment;
@@ -44,13 +57,14 @@
     // 扩展方法到prototype
     $.extend(UploadManage.prototype, {
         _init: function(target, _options) {
+            this.$element = $(target);
             $.extend(this.options, _options || {});
             this._bindEvent();
         },
         // 绑定事件
         _bindEvent: function() {
             var self = this;
-            var _$fileList = $(this.options.fileList);
+            var _$fileList = $(this.options.fileList, this.$element);
             // 解除掉所有click方法
             _$fileList.off('click');
 
@@ -80,14 +94,21 @@
             });
         },
         _dataBindEvent: function($item, data) {
+            // 开始上传
             $item.on('click', '[data-handle="upload_click"]', function(event) {
+                $(this).hide();
+                data.submit();
+            });
+
+            // 重试
+            $item.on('click', '[data-handle="repeat_click"]', function(event) {
                 $(this).hide();
                 data.submit();
             });
         },
         // 装饰
         _decorateItem: function() {
-            var imgItems = $(this.options.fileList).find('.thumbnail');
+            var imgItems = $(this.options.fileList, this.$element).find('.thumbnail');
             var length = imgItems.length;
             (length >= 0) && imgItems.each(function(index, element) {
                 var _item = $(element);
@@ -104,7 +125,9 @@
             });
         },
         // 进度条
-        progress: function(progress, file) {
+        progress: function(data) {
+            var progress = parseInt(data.loaded / data.total * 100, 10);
+            var file = data.files[0];
             $('#' + file.id).find('.progress span').animate({
                 width: progress + '%'
             }, 500, function() {
@@ -121,26 +144,54 @@
         },
         // 修正imgNumber
         _size: function() {
-            this.imgNumber = $(this.options.fileList).find('.thumbnail').length;
+            this.imgNumber = $(this.options.fileList, this.$element).find('.thumbnail').length;
         },
         // 添加
-        add: function(data) {
-            var file = data.files[0];
+        add: function(data, exist) {
+            var file = null;
+            if (!exist) {
+                file = data.files[0];
+            } else {
+                file = data;
+            }
             // 创建id
             file.id = new Date().getTime() + '_' + this.idIndex++;
-            // 插入dom
-            var _$imgItem = $(this.template(file)).insertBefore($(this.options.view));
-            // 不自动上传的绑定手动事件
-            if (!this.options.autoUpload) {
-                this._dataBindEvent(_$imgItem, data);
+            if (!exist) {
+                if (this.imageType.test(file.type)) {
+                    file.bgClass = 'bg-image';
+                } else if (this.excelType.test(file.type)) {
+                    file.bgClass = 'bg-excel';
+                }
             }
+
+            // 插入dom
+            var _$imgItem = $(this.template(file, exist)).insertBefore($(this.options.view, this.$element));
+            // 不自动上传的绑定手动事件
+            // if (!this.options.autoUpload) {
+            this._dataBindEvent(_$imgItem, data);
+            // }
             this._decorateItem();
             this.imgNumber++;
             return this;
         },
+        // 插入已有的
+        addExist: function(files) {
+            var self = this;
+            $.each(files, function(index, file) {
+                file.bgClass = 'bg-' + file.type;
+                self.add(file, true);
+            });
+        },
         // 上传完成
-        done: function(file, res) {
-            $('#' + file.id).find('img').attr('src', res.fullPath).css('display', 'block');
+        done: function(data) {
+            var file = data.files[0];
+            var res = data.result.data;
+            var uploadItem = $('#' + file.id);
+            uploadItem.find('.file-panel').css('display', 'block');
+            // 隐藏域赋值
+            uploadItem.find('input').val(res.path);
+            // 是图片的，显示服务器图 去掉背景
+            (file.bgClass === 'bg-image') && uploadItem.find('img').attr('src', res.fullPath).css('display', 'block') && uploadItem.removeClass('thumbnail-bg');
             return this;
         },
         // 检查
@@ -174,27 +225,42 @@
                 hasError = true;
             }
             return hasError;
+        },
+        // 获得上传路径
+        getUploads: function() {
+            var pathArray = [];
+            $(this.options.fileList, this.$element).find('input[type="hidden"]').each(function(index, element) {
+                pathArray.push(element.value);
+            });
+            return pathArray;
+        },
+        // 上传重试
+        retry: function(data) {
+            var file = data.files[0];
+            $('#' + file.id).find('[data-handle="repeat_click"]').css('display', 'block');
         }
     });
 
     // 定义jQuery插件名
     $.fn.uploadManage = function(_options) {
+        var self = this;
         // 先取出其他参数，如果有的话
         var otherArgs = Array.prototype.slice.call(arguments, 1);
         // string类型表示要做其他操作
         if (typeof _options === 'string') {
-            if (!plugin[_options] || _options.charAt(0) === '_') {
+            if (!plugins[this.uploaderIndex][_options] || _options.charAt(0) === '_') {
                 throw '未知的方法:' + _options;
             }
             // 将dom和对应剩余参数传入
-            return plugin[_options].apply(plugin, otherArgs);
+            return plugins[this.uploaderIndex][_options].apply(plugins[this.uploaderIndex], otherArgs);
         } else {
             // 重新初始化对象
-            plugin = new UploadManage();
+            self.uploaderIndex = gPreffix + gIndex++;
+            plugins[self.uploaderIndex] = new UploadManage();
             // 返回jQuery链式对象
             return this.each(function(index, element) {
                 // 初始化方法
-                plugin._init(element, _options || {});
+                plugins[self.uploaderIndex]._init(element, _options || {});
             });
         }
 

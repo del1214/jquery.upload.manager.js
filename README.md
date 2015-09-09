@@ -64,7 +64,7 @@ view和filelist的富div id选择器
 ### add
 添加图片，对应[jQuery-File-Upload](https://github.com/blueimp/jQuery-File-Upload "jQuery-File-Upload")`add`回调
 
-参数 
+参数
 
 * data
 `uploader.uploadManage('add',data)`
@@ -120,7 +120,19 @@ view和filelist的富div id选择器
 
 ### retry
 显示对应图片重试按钮
-参数 
+参数 data
+
+### addExist
+添加已上传文件
+参数 Array
+```
+files = [{
+    name: 'OCLO3NRN2R57N]~X$I$YA3Q.jpg',
+    fullPath:'http://192.168.7.103:14080/static-content/tmp/product/2015/09/09/1491.jpg',
+    path:'/static-content/tmp/product/2015/09/09/1491.jpg',
+    type: 'image'   //图片 image Excel  excel
+},...]
+```
 
 * data
 返回值 无
