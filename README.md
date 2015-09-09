@@ -122,22 +122,24 @@ view和filelist的富div id选择器
 显示对应图片重试按钮
 参数 data
 
+* data
+返回值 无
+
+`uploader.uploadManage('retry',data)`
+
 ### addExist
 添加已上传文件
 参数 Array
 ```
 files = [{
-    name: 'OCLO3NRN2R57N]~X$I$YA3Q.jpg',
-    fullPath:'http://192.168.7.103:14080/static-content/tmp/product/2015/09/09/1491.jpg',
+    name: 'OCLO3NRN2R57N]~X$I$YA3Q.jpg',//图片名称
+    fullPath:'http://192.168.7.103:14080/static-content/tmp/product/2015/09/09/1491.jpg',//
     path:'/static-content/tmp/product/2015/09/09/1491.jpg',
     type: 'image'   //图片 image Excel  excel
 },...]
 ```
 
-* data
-返回值 无
 
-`uploader.uploadManage('retry',data)`
 
 # 完整Demo
 
@@ -175,19 +177,20 @@ $(function() {
     var eventOptions = {
         // 添加事件
         add: function(e, data) {
-            if (uploadManage.uploadManage('check', data)) {
+            console.log(data.files[0]);
+            if (uploader.uploadManage('check', data)) {
                 // 有错误返回
                 return false;
             } else {
                 // 没错误提交
-                uploadManage.uploadManage('add', data);
+                uploader.uploadManage('add', data);
                 // 自动上传
                 fileOptions.autoUpload && data.submit();
             }
         },
         // 拖拽完成
         drop: function(e, data) {
-            return !uploadManage.uploadManage('numberCheck', false, data);
+            return !uploader.uploadManage('numberCheck', false, data);
         },
         // 提交开始
         submit: function(e, data) {
@@ -212,21 +215,22 @@ $(function() {
         done: function(e, data) {
             window.console && console.log('done');
             if (data.result.code == 1) {
-                uploadManage.uploadManage('done', data.files[0], data.result.data);
+                uploader.uploadManage('done', data);
+            }else if(data.result.code == 0){
+                uploader.uploadManage('retry',data);
             }
         },
         // 上传进度
         progress: function(e, data) {
-            var progress = parseInt(data.loaded / data.total * 100, 10);
-            uploadManage.uploadManage('progress', progress, data.files[0]);
+            uploader.uploadManage('progress', data);
         },
         progressall: function(e, data) {
             window.console && console.log('progressall');
-            // var progress = parseInt(data.loaded / data.total * 100, 10);
         },
         // 上传失败
         fail: function(e, data) {
             window.console && console.log('failed');
+            uploader.uploadManage('retry',data);
         },
         always: function(e, data) {
 
@@ -237,11 +241,15 @@ $(function() {
     // 开启上传空间
     $('#rocoFileUpload').fileupload(options);
     // 开启上传代理
-    uploadManage = $('#uploader').uploadManage({
+    uploader = $('#uploader').uploadManage({
         limitMultiFileUploadSize: fileOptions.limitMultiFileUploadSize,
         limitMultiFileNumber: fileOptions.limitMultiFileNumber,
         acceptFileTypes: fileOptions.acceptFileTypes,
-        autoUpload: fileOptions.autoUpload
+        autoUpload: fileOptions.autoUpload,
+        view: '#rocoDndArea', //拖拽区域
+        fileList: '#rocoFileList', //文件列表
+        statusBar: '#rocoStatusBar', //全局状态条
+        queueList: '#rocoQueueList', //总体范围
     });
 });
 ```
